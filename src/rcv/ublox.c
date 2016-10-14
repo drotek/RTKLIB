@@ -54,6 +54,8 @@
 #define ID_TRKMEAS  0x0310      /* ubx message id: trace mesurement data */
 #define ID_TRKSFRBX 0x030F      /* ubx message id: trace subframe buffer */
 
+#define ID_POSLLH	0x0102		/*fusion edit*/
+
 #define FU1         1           /* ubx message field types */
 #define FU2         2
 #define FU4         3
@@ -408,6 +410,31 @@ static int decode_navsol(raw_t *raw)
     }
     return 0;
 }
+/* decode ubx-nav-posllh ---- fusion edit-----------------------------------*/
+static int decode_posllh(raw_t *raw)
+{
+    unsigned int itow,hacc,vacc;
+	signed int lon,lat,height,hmsl;
+    unsigned char *p=raw->buff+6;
+    
+    trace(4,"decode_posllh: len=%d\n",raw->len);
+    
+    if (raw->outtype) {
+        sprintf(raw->msgtype,"UBX NAV-POSLLH   (%4d):",raw->len);
+    }
+    itow=U4(p);
+    lon=I4(p+4);
+	lat=I4(p+8);
+	height=I4(p+12);
+	hmsl=I4(p+16);
+    hacc=U4(p+18);
+	vacc=U4(p+22);
+	raw->posllh_lat=lat;
+	raw->posllh_lon=lon;
+	raw->posllh_height=height;
+    return 0;
+}
+
 /* decode ubx-nav-timegps: gps time solution ---------------------------------*/
 static int decode_navtime(raw_t *raw)
 {
@@ -896,6 +923,7 @@ static int decode_ubx(raw_t *raw)
         case ID_TRKMEAS : return decode_trkmeas (raw);
         case ID_TRKD5   : return decode_trkd5   (raw);
         case ID_TRKSFRBX: return decode_trksfrbx(raw);
+		case ID_POSLLH  : return decode_posllh  (raw);
     }
     if (raw->outtype) {
         sprintf(raw->msgtype,"UBX 0x%02X 0x%02X (%4d)",type>>8,type&0xF,

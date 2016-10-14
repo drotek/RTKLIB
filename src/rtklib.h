@@ -312,6 +312,8 @@ extern "C" {
 #define SOLF_ENU    2                   /* solution format: e/n/u-baseline */
 #define SOLF_NMEA   3                   /* solution format: NMEA-183 */
 #define SOLF_GSIF   4                   /* solution format: GSI-F1/2/3 */
+#define SOLF_UBX    5                   /* solution format: UBX-POSLLH/SOL/STATUS/VELNED */ /*ubx edit*/
+#define SOLF_BASE	6					/* solution format: Modified UBX for display of coordinates at base station */
 
 #define SOLQ_NONE   0                   /* solution status: no solution */
 #define SOLQ_FIX    1                   /* solution status: fix */
@@ -1093,7 +1095,7 @@ typedef struct {        /* satellite status type */
     unsigned char snr [NFREQ]; /* signal strength (0.25 dBHz) */
     unsigned char fix [NFREQ]; /* ambiguity fix flag (1:fix,2:float,3:hold) */
     unsigned char slip[NFREQ]; /* cycle-slip flag */
-    unsigned int lock [NFREQ]; /* lock counter of phase */
+    int lock [NFREQ]; /* lock counter of phase */
     unsigned int outc [NFREQ]; /* obs outage counter of phase */
     unsigned int slipc[NFREQ]; /* cycle-slip counter */
     unsigned int rejc [NFREQ]; /* reject counter */
@@ -1161,6 +1163,9 @@ typedef struct {        /* receiver raw data control type */
     unsigned int reply; /* RT17: Current reply number */
     int week;           /* RT17: week number */
     unsigned char pbuff[255+4+2]; /* RT17: Packet buffer */
+	int posllh_lat;
+	int posllh_lon;
+	int posllh_height;
 } raw_t;
 
 typedef struct {        /* stream type */
@@ -1564,13 +1569,13 @@ extern int inputsol(unsigned char data, gtime_t ts, gtime_t te, double tint,
 extern int outprcopts(unsigned char *buff, const prcopt_t *opt);
 extern int outsolheads(unsigned char *buff, const solopt_t *opt);
 extern int outsols  (unsigned char *buff, const sol_t *sol, const double *rb,
-                     const solopt_t *opt);
+                     const solopt_t *opt, const ssat_t *ssat, const raw_t *raw); /* ubx edit */ /* fusion edit */
 extern int outsolexs(unsigned char *buff, const sol_t *sol, const ssat_t *ssat,
                      const solopt_t *opt);
 extern void outprcopt(FILE *fp, const prcopt_t *opt);
 extern void outsolhead(FILE *fp, const solopt_t *opt);
 extern void outsol  (FILE *fp, const sol_t *sol, const double *rb,
-                     const solopt_t *opt);
+                     const solopt_t *opt, const ssat_t *ssat, const raw_t *raw);  /* ubx edit */ /* fusion edit */
 extern void outsolex(FILE *fp, const sol_t *sol, const ssat_t *ssat,
                      const solopt_t *opt);
 extern int outnmea_rmc(unsigned char *buff, const sol_t *sol);
@@ -1579,6 +1584,8 @@ extern int outnmea_gsa(unsigned char *buff, const sol_t *sol,
                        const ssat_t *ssat);
 extern int outnmea_gsv(unsigned char *buff, const sol_t *sol,
                        const ssat_t *ssat);
+extern int outubx(unsigned char *buff, const sol_t *sol, int *week, const ssat_t *ssat, const raw_t *raw);	/* ubx edit */ /* fusion edit */
+extern int outbase(unsigned char *buff,const sol_t *sol);
 
 /* google earth kml converter ------------------------------------------------*/
 extern int convkml(const char *infile, const char *outfile, gtime_t ts,

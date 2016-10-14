@@ -27,6 +27,16 @@
 #include <signal.h>
 #include "rtklib.h"
 #include "vt.h"
+/* Edison GPIO operation */
+#include "mraa.h"
+
+#include <stdio.h>
+#include <unistd.h>
+
+mraa_gpio_context mux_control = NULL;
+mraa_gpio_context mux_control2 = NULL;
+
+/* Edison GPIO operation */
 
 static const char rcsid[]="$Id:$";
 
@@ -135,7 +145,7 @@ static const char *pathopts[]={         /* path options help */
 #define OSTOPT  "0:off,1:serial,2:file,3:tcpsvr,4:tcpcli,6:ntripsvr"
 #define FMTOPT  "0:rtcm2,1:rtcm3,2:oem4,3:oem3,4:ubx,5:ss2,6:hemis,7:skytraq,8:gw10,9:javad,10:nvs,11:binex,12:rt17,15:sp3"
 #define NMEOPT  "0:off,1:latlon,2:single"
-#define SOLOPT  "0:llh,1:xyz,2:enu,3:nmea"
+#define SOLOPT  "0:llh,1:xyz,2:enu,3:nmea,5:ubx,6:base"    /*ubx edit*/
 #define MSGOPT  "0:all,1:rover,2:base,3:corr"
 
 static opt_t rcvopts[]={
@@ -846,7 +856,7 @@ static void prstream(vt_t *vt)
     };
     const char *fmt[]={"rtcm2","rtcm3","oem4","oem3","ubx","ss2","hemis","skytreq",
                        "gw10","javad","nvs","binex","rt17","","","sp3","","",""};
-    const char *sol[]={"llh","xyz","enu","nmea"};
+    const char *sol[]={"llh","xyz","enu","nmea","ubx","base"}; /* ubx edit */
     stream_t stream[9];
     int i,format[9]={0};
     
@@ -1368,6 +1378,43 @@ int main(int argc, char **argv)
     vt_t vt={0};
     int i,start=0,port=0,outstat=0,trace=0;
     char *dev="",file[MAXSTR]="";
+    /* Edison GPIO operation */
+    mraa_platform_t platform = mraa_get_platform_type();
+
+    switch (platform) {
+		case MRAA_INTEL_EDISON_FAB_C:
+			mux_control = mraa_gpio_init(14);	/* GP13 for mini */
+			mux_control2 = mraa_gpio_init(20);	/* GP12 for mini */
+			break;
+		default:
+			fprintf(stderr, "Unsupported platform, exiting");
+			return MRAA_ERROR_INVALID_PLATFORM;
+	}
+
+	if (mux_control == NULL) {
+		fprintf(stderr, "MRAA couldn't initialize GPIO 13, exiting");
+		return MRAA_ERROR_UNSPECIFIED;
+	}
+
+		if (mux_control2 == NULL) {
+		fprintf(stderr, "MRAA couldn't initialize GPIO 12, exiting");
+		return MRAA_ERROR_UNSPECIFIED;
+	}
+	
+	if (mraa_gpio_dir(mux_control, MRAA_GPIO_OUT) != MRAA_SUCCESS) {
+		fprintf(stderr, "Can't set digital pin 13 as output, exiting");
+		return MRAA_ERROR_UNSPECIFIED;
+	}
+	
+	if (mraa_gpio_dir(mux_control2, MRAA_GPIO_OUT) != MRAA_SUCCESS) {
+		fprintf(stderr, "Can't set digital pin 12 as output, exiting");
+		return MRAA_ERROR_UNSPECIFIED;
+	}	
+	
+    /* Edison GPIO operation */
+
+	mraa_gpio_write(mux_control, 0);
+	mraa_gpio_write(mux_control2, 1);
     
     for (i=1;i<argc;i++) {
         if      (!strcmp(argv[i],"-s")) start=1;
@@ -1409,7 +1456,9 @@ int main(int argc, char **argv)
         return -1;
     }
     /* start rtk server */
-    if (start&&!startsvr(&vt)) return -1;
+    if (start&&!startsvr(&vt)) {
+    	return -1;
+    }
     
     signal(SIGINT, sigshut);    /* keyboard interrupt */
     signal(SIGTERM,sigshut);    /* external shutdown signal */
@@ -1433,6 +1482,8 @@ int main(int argc, char **argv)
     }
     /* stop rtk server */
     stopsvr(&vt);
+	mraa_gpio_write(mux_control, 0);
+	mraa_gpio_write(mux_control2, 0);
     
     if (moniport>0) closemoni();
     

@@ -1,14 +1,18 @@
-# makefile for rtkrcv
+# makefile for rtkrcv dos
 
 BINDIR = /usr/local/bin
 SRC    = ../../../src
+MKINC = ../../../../mkl/include
+MKONE = ../../../../mkl/ia32/libmkl_intel.a
+MKDOS = ../../../../mkl/ia32/libmkl_core.a
+MKTRES = ../../../../mkl/ia32/libmkl_sequential.a
 
 # for beagleboard
 #CTARGET= -mfpu=neon -mfloat-abi=softfp -ffast-math
 CTARGET= -DENAGLO -DENAQZS -DENACMP -DNFREQ=3
 
-CFLAGS = -Wall -O3 -ansi -pedantic -Wno-unused-but-set-variable -I$(SRC) -I.. -DTRACE $(CTARGET) -g
-LDLIBS  = -lm -lrt -lpthread
+CFLAGS = -Wall -O3 -ansi -pedantic -Wno-unused-but-set-variable -I$(SRC) -I.. -I$(MKINC) -DTRACE $(CTARGET) -g -DMKL
+LDLIBS  = -Wl,--start-group $(MKONE) $(MKDOS) $(MKTRES) -Wl,--end-group -lpthread -lm -lrt -lmraa
 
 all        : rtkrcv
 rtkrcv     : rtkrcv.o vt.o rtkcmn.o rtksvr.o rtkpos.o geoid.o solution.o lambda.o
